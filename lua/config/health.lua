@@ -12,6 +12,7 @@ return {
             git = 'vim.pack.add clones plugins with git',
             fzf = 'fzf-lua drives the `fzf` binary',
             rg = 'fzf-lua grep providers',
+            unzip = 'mason.nvim extracts packages with unzip',
         } do
             if vim.fn.executable(exe) == 1 then
                 vim.health.ok(('`%s` (%s)'):format(exe, why))

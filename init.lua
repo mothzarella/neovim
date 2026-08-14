@@ -173,6 +173,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 vim.g.swatch = '󱓻 '
+vim.g.border = 'solid'
 
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
@@ -208,7 +209,7 @@ vim.o.splitkeep = 'screen'
 
 vim.o.laststatus = 3
 
-vim.o.winborder = 'solid'
+vim.o.winborder = vim.g.border
 
 vim.o.ignorecase = true
 vim.o.smartcase = true
@@ -392,7 +393,7 @@ safe('event:InsertEnter', function()
     vim.o.completeopt = 'fuzzy,nosort,menuone,noselect,popup'
     vim.o.autocompletedelay = 100
     vim.o.pumheight = 10
-    vim.o.pumborder = 'solid' -- `winborder` does not reach the popupmenu.
+    vim.o.pumborder = vim.g.border -- `winborder` does not reach the popupmenu.
 
     vim.api.nvim_create_autocmd({ 'InsertEnter', 'InsertLeave' }, {
         group = group,
@@ -636,7 +637,7 @@ local fzf = safe('once', function()
         file_icon_padding = ' ',
         fzf_opts = { ['--no-scrollbar'] = true },
         fzf_colors = true,
-        winopts = { border = 'solid', preview = { border = 'solid' } },
+        winopts = { border = vim.g.border, preview = { border = vim.g.border } },
     }
 
     require('fzf-lua').register_ui_select()
@@ -799,6 +800,16 @@ do
             vim.keymap.set('n', 'gI', '<Cmd>FzfLua lsp_incoming_calls<CR>', { buffer = ev.buf })
             vim.keymap.set('n', 'gq', '<Cmd>FzfLua lsp_document_diagnostics<CR>', { buffer = ev.buf })
             vim.keymap.set({ 'n', 'x' }, 'ga', '<Cmd>FzfLua lsp_code_actions<CR>', { buffer = ev.buf })
+
+            if client:supports_method('textDocument/hover', ev.buf) then
+                vim.keymap.set('n', 'K', function()
+                    local names = vim
+                        .iter(vim.lsp.get_clients { bufnr = 0, method = 'textDocument/hover' }) ---@diagnostic disable-line
+                        :map(function(c) return c.name end)
+                        :join ', '
+                    vim.lsp.buf.hover { title = (' %s '):format(names) }
+                end, { buffer = ev.buf, desc = 'Hover' })
+            end
 
             if client:supports_method('textDocument/rename', ev.buf) then
                 vim.keymap.set('n', 'grn', rename, { buffer = ev.buf, desc = 'Rename symbol' })
@@ -1169,10 +1180,6 @@ end
 do
     local ns = vim.api.nvim_create_namespace 'patterns'
 
-    local MAX_LINE = 400 -- Skip minified lines: no eye reads them anyway.
-    local PRIORITY = 200 -- Above treesitter and diagnostics.
-    local SWATCH = vim.g.swatch
-
     local keywords = {
         TODO = vim.api.nvim_get_hl_id_by_name 'PatternTodo',
         FIXME = vim.api.nvim_get_hl_id_by_name 'PatternFixme',
@@ -1183,6 +1190,9 @@ do
         TEST = vim.api.nvim_get_hl_id_by_name 'PatternTest',
     }
 
+    local MAX_LINE = 400 -- Skip minified lines: no eye reads them anyway.
+    local PRIORITY = 200 -- Above treesitter and diagnostics.
+    local SWATCH = vim.g.swatch
     local MAX_SWATCHES = 10000 -- Highlight groups are never reclaimed; cap the leak.
 
     local swatches = {} ---@type table<string, integer>
@@ -1272,6 +1282,16 @@ do
             return false
         end,
     })
+
+    vim.keymap.set('n', '<leader>ft', function()
+        fzf()
+        require('fzf-lua').grep {
+            search = ([[\b(%s):]]):format(table.concat(vim.tbl_keys(keywords), '|')),
+            no_esc = true,
+            prompt = '> ',
+            headers = false,
+        }
+    end, { desc = 'Find keyword comments' })
 
     vim.api.nvim_create_autocmd({ 'BufWipeout', 'BufDelete' }, {
         group = group,
