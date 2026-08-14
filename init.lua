@@ -258,7 +258,7 @@ vim.keymap.set('n', '<leader>fg', '<Cmd>FzfLua git_status<CR>', { desc = 'Git st
 
 vim.keymap.set('n', '<leader>m', '<Cmd>Mason<CR>', { desc = 'Open Mason' })
 
--- Autocmd ---------------------------------------------------------------------
+-- Commands --------------------------------------------------------------------
 
 vim.api.nvim_create_autocmd('TextYankPost', {
     group = group,
@@ -279,6 +279,16 @@ vim.api.nvim_create_autocmd('BufReadPost', {
         end
     end,
 })
+
+vim.api.nvim_create_user_command(
+    'MasonInstallAll',
+    function()
+        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua tailwindcss-language-server tsgo ty'
+    end,
+    {}
+)
+
+-- Bigfiles --------------------------------------------------------------------
 
 do
     local BIGFILE = 1.5 * 1024 * 1024
@@ -331,13 +341,150 @@ do
     })
 end
 
-vim.api.nvim_create_user_command(
-    'MasonInstallAll',
-    function()
-        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua tailwindcss-language-server tsgo ty'
-    end,
-    {}
-)
+-- Dashboard -------------------------------------------------------------------
+
+do
+    local ns = vim.api.nvim_create_namespace 'dashboard'
+    local config = vim.fs.joinpath(vim.fn.stdpath 'config', 'init.lua') ---@diagnostic disable-line
+
+    ---@type [string, string, string][] key, label, command
+    local items = {
+        { 'f', 'find file', 'FzfLua files' },
+        { 'r', 'recent', 'FzfLua oldfiles' },
+        { 'g', 'grep', 'FzfLua live_grep' },
+        { 'e', 'explorer', 'Oil' },
+        { 'c', 'config', 'edit ' .. config },
+        { 'q', 'quit', 'qall' },
+    }
+
+    local art = vim.split(
+        [[
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣨⣽⣷⣾⣿⣿⣿⣿⣿⡿
+⣿⣿⣿⣿⣿⠟⣿⣿⣿⣿⣿⣿⡿⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⢿⣿⣿⣿⣿⣿⣿⣿⣧
+⣿⣿⣿⣿⠏⠀⢹⣿⣿⡟⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣽
+⣿⣿⣿⠏⠀⠀⠸⣿⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣳⣿
+⣿⣿⡟⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⢯⣿⣿
+⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿
+⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⡀⠀⡀⠄⠀⠀⠀⠀⣰⣿⢀⡇⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣸⢃⠀⣴⠀⡴⣸⠁⠀⢠⠂⣰⣿⡇⣬⡅⢀⡀⢘⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⣿⠀⠀⢸⡆⠀⠀⠀⠀⠀⠐⠉⠀⠀⠈⠉⠓⢿⠀⣰⠇⣴⣿⡿⣸⣿⠿⠼⠇⢿⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⡏⡇⠀⠘⡇⠀⠀⠀⠀⠀⠀⠆⠀⠀⠀⠀⣷⣃⣼⣿⣾⣿⣿⣽⡏⠀⠀⠀⡀⣄⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⣷⢻⡀⠀⠘⠀⠀⠀⠀⠀⠀⣾⢢⢽⣥⣾⣿⣿⣿⣿⣿⣿⣿⣿⣧⢤⡤⠀⣸⢏⡄⠀⠀⠀⠀⠀⠀⣿⣿
+⣿⣿⣯⣇⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣤⣭⣽⣿⠃⠀⠀⠀⠀⠀⢀⣿⣿
+⣿⣿⣿⣿⣿⣷⣠⠰⠀⠀⠀⠀⠸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿
+⣿⣿⣿⣿⣿⣿⡿⢧⡧⠀⠂⠀⢠⠈⣟⢿⣿⣿⣿⣿⣿⣽⣿⣿⣿⣿⡿⢟⢡⢠⠇⠂⠀⠀⠀⠀⢀⣿⣿⣿
+⣿⣿⠟⠀⠀⠀⠀⣾⣽⣦⠸⡄⠰⡄⠹⣿⣿⣟⡿⣿⣿⣿⣿⠛⣹⣷⣿⣿⣾⣼⡺⡆⠀⠀⠀⠾⣸⣿⣿⣿
+⠟⠁⠀⠀⠀⠀⢠⣏⣿⣿⣧⣿⡀⣷⣄⠈⠛⠿⣿⣶⡶⠟⠃⢠⣿⣿⣿⣿⣿⣿⣇⡇⠀⠀⠀⠀⠀⠈⠛⢿
+⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣷⣿⣿⣷⣄⡀⠀⠀⢀⣠⣴⣿⣿⣿⣿⣿⣿⣿⠻⠀⠀⠀⠀⠀⠀⠀⠀⠈
+⠀⠀⠀⠀⠀⠀⢸⡟⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡏⣾⠀⠀⠀⠀⠀⠀⠀⠀⠀]],
+        '\n',
+        { trimempty = true }
+    )
+
+    local labels, label_width = {}, 0 ---@type string[], integer
+    for i, item in ipairs(items) do
+        labels[i] = ('%s  %s'):format(item[1], item[2])
+        label_width = math.max(label_width, #labels[i])
+    end
+    local art_width = vim.api.nvim_strwidth(assert(art[1]))
+
+    ---@param width integer
+    ---@param block integer
+    ---@return string
+    local function pad(width, block) return (' '):rep(math.max(0, math.floor((width - block) / 2))) end
+
+    ---@param buf integer
+    ---@param win integer
+    local function draw(buf, win)
+        local width = vim.api.nvim_win_get_width(win)
+        local art_pad, label_pad = pad(width, art_width), pad(width, label_width)
+        local top = math.max(0, math.floor((vim.api.nvim_win_get_height(win) - #art - 1 - #labels) / 2))
+
+        local lines = {} ---@type string[]
+        for i = 1, top do
+            lines[i] = ''
+        end
+        for _, text in ipairs(art) do
+            lines[#lines + 1] = art_pad .. text
+        end
+        lines[#lines + 1] = ''
+        for _, text in ipairs(labels) do
+            lines[#lines + 1] = label_pad .. text
+        end
+
+        vim.bo[buf].modifiable = true
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].modifiable = false
+        vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+
+        for i in ipairs(art) do
+            local line = top + i - 1 -- The `vim.hl.range` wrapper is way too slow per call + loads `vim.hl` at startup.
+            vim.api.nvim_buf_set_extmark(buf, ns, line, #art_pad, { end_col = #lines[line + 1], hl_group = 'Title' })
+        end
+        for i in ipairs(labels) do
+            local line = top + #art + i
+            vim.api.nvim_buf_set_extmark(buf, ns, line, #label_pad, { end_col = #label_pad + 1, hl_group = 'Special' })
+            vim.api.nvim_buf_set_extmark(
+                buf,
+                ns,
+                line,
+                #label_pad + 1,
+                { end_col = #lines[line + 1], hl_group = 'Comment' }
+            )
+        end
+    end
+
+    vim.api.nvim_create_autocmd('VimEnter', {
+        group = group,
+        nested = true,
+        desc = 'dashboard: a handful of keys on the otherwise empty start buffer',
+        callback = function()
+            if vim.fn.argc() > 0 or vim.bo.filetype ~= '' then return end
+            if #vim.fn.getbufinfo { buflisted = 1 } > 1 then return end
+            local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+            if #lines > 1 or lines[1] ~= '' then return end
+
+            local buf, win = vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
+            vim.bo[buf].buftype = 'nofile'
+            vim.bo[buf].bufhidden = 'wipe'
+            vim.bo[buf].buflisted = false
+            vim.bo[buf].filetype = 'dashboard'
+            vim.wo[win][0].number = false
+            vim.wo[win][0].relativenumber = false
+            vim.wo[win][0].signcolumn = 'no'
+            vim.wo[win][0].fillchars = 'eob: '
+
+            draw(buf, win)
+
+            for _, item in ipairs(items) do
+                vim.keymap.set('n', item[1], '<Cmd>' .. item[3] .. '<CR>', { buffer = buf, nowait = true })
+            end
+
+            local guicursor = vim.o.guicursor
+            vim.api.nvim_set_hl(0, 'DashboardCursor', { blend = 100, nocombine = true })
+            vim.o.guicursor = 'a:DashboardCursor'
+
+            local live = vim.api.nvim_create_augroup('dashboard.live', {})
+            vim.api.nvim_create_autocmd('VimResized', {
+                group = live,
+                desc = 'dashboard: recenter on resize',
+                callback = function() draw(buf, win) end,
+            })
+
+            vim.api.nvim_create_autocmd({ 'BufLeave', 'BufWipeout' }, {
+                group = live,
+                buffer = buf,
+                once = true,
+                desc = 'dashboard: restore the cursor and stop redrawing',
+                callback = function()
+                    vim.o.guicursor = guicursor
+                    vim.api.nvim_clear_autocmds { group = live, event = 'VimResized' }
+                end,
+            })
+        end,
+    })
+end
 
 -- Plugins ---------------------------------------------------------------------
 
@@ -1192,12 +1339,11 @@ do
 
     local MAX_LINE = 400 -- Skip minified lines: no eye reads them anyway.
     local PRIORITY = 200 -- Above treesitter and diagnostics.
-    local SWATCH = vim.g.swatch
     local MAX_SWATCHES = 10000 -- Highlight groups are never reclaimed; cap the leak.
+    local SWATCH = vim.g.swatch
 
-    local swatches = {} ---@type table<string, integer>
+    local swatches, states = {}, {} ---@type table<string, integer>, table<integer, { tick: integer, rows: table<integer, true> }>
     local nswatches = 0
-    local states = {} ---@type table<integer, { tick: integer, rows: table<integer, true> }>
 
     ---@param buf integer
     ---@param row integer
