@@ -255,6 +255,8 @@ vim.keymap.set('n', '<leader>fk', '<Cmd>FzfLua keymaps<CR>', { desc = 'Keymaps' 
 vim.keymap.set('n', '<leader>fc', '<Cmd>FzfLua commands<CR>', { desc = 'Commands' })
 vim.keymap.set('n', '<leader>fg', '<Cmd>FzfLua git_status<CR>', { desc = 'Git status' })
 
+vim.keymap.set('n', '<leader>m', '<Cmd>Mason<CR>', { desc = 'Open Mason' })
+
 -- Autocmd ---------------------------------------------------------------------
 
 vim.api.nvim_create_autocmd('TextYankPost', {
@@ -331,7 +333,7 @@ end
 vim.api.nvim_create_user_command(
     'MasonInstallAll',
     function()
-        vim.cmd 'MasonInstall alejandra emmylua_ls gopls nil oxfmt oxlint ruff stylua tailwindcss-language-server tsgo ty'
+        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua tailwindcss-language-server tsgo ty'
     end,
     {}
 )
@@ -437,8 +439,8 @@ safe('cmd:Guard', function()
         end
     end
 
-    fmt('go', { 'lsp' })
-    fmt('javascript,javascriptreact,typescript,typescriptreact', {
+    fmt('go', { { cmd = 'goimports', args = { '-format', '-output', 'stdout', '-file-path' }, fname = true } })
+    fmt('javascript,javascriptreact,typescript,typescriptreact,css,scss,less', {
         {
             cmd = 'oxfmt',
             args = { '--stdin-filepath' },
@@ -471,7 +473,7 @@ safe('cmd:Oil', function()
     }
 end)
 
-safe('cmd:Mason,MasonInstall,MasonUninstall,MasonUninstallAll,MasonUpdate', function()
+safe('cmd:Mason,MasonInstall,MasonInstallAll,MasonUninstall,MasonUninstallAll,MasonUpdate', function()
     vim.cmd.packadd 'mason.nvim'
     ---@diagnostic disable-next-line
     require('mason').setup {
@@ -578,7 +580,10 @@ safe('later', function()
     })
 
     vim.lsp.document_color.enable(true, nil, { style = vim.g.swatch })
-    vim.lsp.enable {
+    vim.lsp.enable(vim.tbl_filter(function(name)
+        local cmd = vim.lsp.config[name].cmd ---@diagnostic disable-line
+        return type(cmd) ~= 'table' or vim.fn.executable(cmd[1]) == 1
+    end, {
         'emmylua_ls',
         'gopls',
         'nil_ls',
@@ -587,7 +592,7 @@ safe('later', function()
         'tailwindcss',
         'tsc',
         'ty',
-    }
+    }))
 end)
 
 safe('later', function()
@@ -897,31 +902,6 @@ do
                     local buf = vim.api.nvim_get_current_buf()
                     vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = buf }, { bufnr = buf })
                 end, { buffer = ev.buf, desc = 'Toggle inlay hints' })
-            end
-
-            if client.name == 'gopls' then
-                vim.api.nvim_create_autocmd('BufWritePre', {
-                    group = group,
-                    buffer = ev.buf,
-                    desc = 'go: organize imports, then gofmt',
-                    callback = function(ev2)
-                        local zero = { line = 0, character = 0 }
-                        local res = client:request_sync('textDocument/codeAction', {
-                            textDocument = vim.lsp.util.make_text_document_params(ev2.buf),
-                            range = { start = zero, ['end'] = zero },
-                            context = { only = { 'source.organizeImports' }, diagnostics = {} },
-                        }, 1000, ev2.buf)
-                        for _, action in ipairs(res and res.result or {}) do
-                            if action.edit then
-                                vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
-                            elseif action.command then
-                                client:exec_cmd(action.command, { bufnr = ev2.buf })
-                            end
-                        end
-
-                        vim.lsp.buf.format { bufnr = ev2.buf, id = client.id, timeout_ms = 1000 }
-                    end,
-                })
             end
         end,
     })
