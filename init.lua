@@ -283,7 +283,7 @@ vim.api.nvim_create_autocmd('BufReadPost', {
 vim.api.nvim_create_user_command(
     'MasonInstallAll',
     function()
-        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua qmlls tailwindcss-language-server tsgo ty'
+        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua qmlls tailwindcss-language-server tsc ty'
     end,
     {}
 )
@@ -622,7 +622,7 @@ safe('cmd:Oil', function()
     }
 end)
 
-safe('cmd:Mason,MasonInstall,MasonInstallAll,MasonUninstall,MasonUninstallAll,MasonUpdate', function()
+safe('cmd:Mason,MasonInstall,MasonUninstall,MasonUninstallAll,MasonUpdate', function()
     vim.cmd.packadd 'mason.nvim'
     ---@diagnostic disable-next-line
     require('mason').setup {

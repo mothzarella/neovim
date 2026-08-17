@@ -42,7 +42,7 @@ return {
             'qmlls',
             'ruff',
             'tailwindcss-language-server',
-            'tsgo',
+            'tsc',
             'ty',
         } do
             if vim.fn.executable(exe) == 1 then
