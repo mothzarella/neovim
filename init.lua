@@ -280,6 +280,17 @@ vim.api.nvim_create_autocmd('BufReadPost', {
     end,
 })
 
+vim.api.nvim_create_autocmd({ 'BufNewFile', 'BufReadPost', 'BufFilePost' }, {
+    group = group,
+    desc = 'editorconfig: `loadplugins = false` skipped the runtime plugin; apply it off the read path',
+    callback = function(ev)
+        if vim.bo[ev.buf].buftype ~= '' or vim.api.nvim_buf_get_name(ev.buf) == '' then return end
+        vim.schedule(function()
+            if vim.api.nvim_buf_is_valid(ev.buf) then require('editorconfig').config(ev.buf) end
+        end)
+    end,
+})
+
 vim.api.nvim_create_user_command(
     'MasonInstallAll',
     function()
@@ -813,6 +824,9 @@ safe('later', function()
     vim.cmd.runtime 'plugin/osc52.lua' -- `loadplugins = false` skipped it.
     vim.o.clipboard = 'unnamedplus'
 end)
+
+-- `keywordprg` defaults to `:Man`, but `loadplugins = false` skipped the command.
+safe('cmd:Man', function() vim.cmd.runtime 'plugin/man.lua' end)
 
 -- LSP -------------------------------------------------------------------------
 
