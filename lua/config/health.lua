@@ -26,6 +26,7 @@ return {
             alejandra = 'nix',
             ruff = 'python',
             oxfmt = 'javascript/typescript',
+            ['goimports-reviser'] = 'go',
         } do
             if vim.fn.executable(exe) == 1 then
                 vim.health.ok(('`%s` (%s)'):format(exe, langs))

@@ -232,7 +232,7 @@ vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 vim.keymap.set('n', '<leader>q', function() vim.diagnostic.setloclist() end, { desc = 'Open diagnostic loclist' })
 
-vim.keymap.set({ 'n', 'v' }, '<leader>fm', '<Cmd>Guard fmt<CR>', { desc = 'Format buffer' })
+vim.keymap.set({ 'n', 'v' }, '<leader>fm', '<Cmd>update | Guard fmt<CR>', { desc = 'Format buffer' })
 vim.keymap.set('n', '-', '<Cmd>Oil<CR>', { desc = 'Open parent directory' })
 
 vim.keymap.set('n', '<leader>cc', function()
@@ -588,7 +588,8 @@ safe('cmd:Guard', function()
     end
 
     fmt('qml', { 'lsp' })
-    fmt('go', { { cmd = 'goimports', args = { '-format', '-output', 'stdout', '-file-path' }, fname = true } })
+    -- No stdin support, so guard runs it in place and reloads; the keymap writes first.
+    fmt('go', { { cmd = 'goimports-reviser', args = { '-format' }, fname = true } })
     fmt('javascript,javascriptreact,typescript,typescriptreact,css,scss,less', {
         {
             cmd = 'oxfmt',
