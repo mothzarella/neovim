@@ -283,7 +283,7 @@ vim.api.nvim_create_autocmd('BufReadPost', {
 vim.api.nvim_create_user_command(
     'MasonInstallAll',
     function()
-        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua tailwindcss-language-server tsgo ty'
+        vim.cmd 'MasonInstall alejandra emmylua_ls goimports-reviser gopls nil oxfmt oxlint ruff stylua qmlls tailwindcss-language-server tsgo ty'
     end,
     {}
 )
@@ -587,6 +587,7 @@ safe('cmd:Guard', function()
         end
     end
 
+    fmt('qml', { 'lsp' })
     fmt('go', { { cmd = 'goimports', args = { '-format', '-output', 'stdout', '-file-path' }, fname = true } })
     fmt('javascript,javascriptreact,typescript,typescriptreact,css,scss,less', {
         {
@@ -740,6 +741,7 @@ safe('later', function()
         'tailwindcss',
         'tsc',
         'ty',
+        'qmlls',
     }))
 end)
 

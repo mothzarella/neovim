@@ -39,6 +39,7 @@ return {
             'gopls',
             'nil',
             'oxlint',
+            'qmlls',
             'ruff',
             'tailwindcss-language-server',
             'tsgo',
