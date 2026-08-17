@@ -169,11 +169,32 @@ end
 
 -- Options ---------------------------------------------------------------------
 
+local SWATCH = '󱓻 '
+local BORDER = 'solid'
+local IGNORE = {
+    -- JavaScript/TypeScript
+    'node_modules',
+    'dist',
+    'build',
+    'coverage',
+    -- Python
+    '.venv',
+    'venv',
+    '__pycache__',
+    '.mypy_cache',
+    '.pytest_cache',
+    '.ruff_cache',
+    '.tox',
+    -- Go
+    'vendor',
+    -- Nix
+    'result',
+    '.direnv',
+    '.cache',
+}
+
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-
-vim.g.swatch = '󱓻 '
-vim.g.border = 'solid'
 
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
@@ -209,7 +230,7 @@ vim.o.splitkeep = 'screen'
 
 vim.o.laststatus = 3
 
-vim.o.winborder = vim.g.border
+vim.o.winborder = BORDER
 
 vim.o.ignorecase = true
 vim.o.smartcase = true
@@ -551,7 +572,7 @@ safe('event:InsertEnter', function()
     vim.o.completeopt = 'fuzzy,nosort,menuone,noselect,popup'
     vim.o.autocompletedelay = 100
     vim.o.pumheight = 10
-    vim.o.pumborder = vim.g.border -- `winborder` does not reach the popupmenu.
+    vim.o.pumborder = BORDER -- `winborder` does not reach the popupmenu.
 
     vim.api.nvim_create_autocmd({ 'InsertEnter', 'InsertLeave' }, {
         group = group,
@@ -599,7 +620,6 @@ safe('cmd:Guard', function()
     end
 
     fmt('qml', { 'lsp' })
-    -- No stdin support, so guard runs it in place and reloads; the keymap writes first.
     fmt('go', { { cmd = 'goimports-reviser', args = { '-format' }, fname = true } })
     fmt('javascript,javascriptreact,typescript,typescriptreact,css,scss,less', {
         {
@@ -740,7 +760,7 @@ safe('later', function()
         end,
     })
 
-    vim.lsp.document_color.enable(true, nil, { style = vim.g.swatch })
+    vim.lsp.document_color.enable(true, nil, { style = SWATCH })
     vim.lsp.enable(vim.tbl_filter(function(name)
         local cmd = vim.lsp.config[name].cmd ---@diagnostic disable-line
         return type(cmd) ~= 'table' or vim.fn.executable(cmd[1]) == 1
@@ -794,11 +814,21 @@ end)
 
 local fzf = safe('once', function()
     vim.cmd.packadd 'fzf-lua'
+    local defaults = require('fzf-lua.defaults').defaults
+
+    local fd_excl = table.concat(vim.tbl_map(function(p) return ' --exclude ' .. p end, IGNORE))
+    local globs = table.concat(vim.tbl_map(function(p) return (' -g "!%s"'):format(p) end, IGNORE))
+
     require('fzf-lua').setup {
         file_icon_padding = ' ',
         fzf_opts = { ['--no-scrollbar'] = true },
         fzf_colors = true,
-        winopts = { border = vim.g.border, preview = { border = vim.g.border } },
+        winopts = { border = BORDER, preview = { border = BORDER } },
+        files = {
+            fd_opts = defaults.files.fd_opts .. fd_excl,
+            rg_opts = defaults.files.rg_opts .. globs,
+        },
+        grep = { rg_opts = globs:sub(2) .. ' ' .. defaults.grep.rg_opts },
     }
 
     require('fzf-lua').register_ui_select()
@@ -812,7 +842,6 @@ safe('later', function()
 
     pending = function(...)
         fzf()
-        -- fzf-lua `register_ui_select` replaced the stub;
         if vim.ui.select == pending then vim.ui.select = builtin end ---@diagnostic disable-line
         return vim.ui.select(...)
     end
@@ -825,7 +854,6 @@ safe('later', function()
     vim.o.clipboard = 'unnamedplus'
 end)
 
--- `keywordprg` defaults to `:Man`, but `loadplugins = false` skipped the command.
 safe('cmd:Man', function() vim.cmd.runtime 'plugin/man.lua' end)
 
 -- LSP -------------------------------------------------------------------------
@@ -1326,7 +1354,6 @@ do
             memo[buf] = slot
         end
 
-        -- `%<` before the left group: a narrow split eats filename/branch, never the cursor position on the right.
         return mode()
             .. '%<'
             .. file(buf)
@@ -1357,7 +1384,6 @@ do
     local MAX_LINE = 400 -- Skip minified lines: no eye reads them anyway.
     local PRIORITY = 200 -- Above treesitter and diagnostics.
     local MAX_SWATCHES = 10000 -- Highlight groups are never reclaimed; cap the leak.
-    local SWATCH = vim.g.swatch
 
     local swatches, states = {}, {} ---@type table<string, integer>, table<integer, { tick: integer, rows: table<integer, true> }>
     local nswatches = 0
